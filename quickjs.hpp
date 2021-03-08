@@ -170,6 +170,8 @@ namespace qjs {
 
         Value eval(const std::string& input, const std::string& filename, int eval_flags);
 
+        Value get_global_object();
+
         friend class Runtime;
     };
 }

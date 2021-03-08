@@ -399,3 +399,8 @@ qjs::Value qjs::Context::eval(const std::string& input, const std::string& filen
     auto value = JS_Eval(m_context, input.c_str(), input.size(), filename.c_str(), eval_flags);
     return Value(std::move(value), m_context);
 }
+
+qjs::Value qjs::Context::get_global_object() {
+    auto value = JS_GetGlobalObject(m_context);
+    return Value(std::move(value), m_context);
+}
