@@ -65,7 +65,9 @@ else
 endif
 ifdef CONFIG_CLANG
   HOST_CC=clang
+  HOST_CXX=clang++
   CC=$(CROSS_PREFIX)clang
+  CXX=$(CROSS_PREFIX)clang++
   CFLAGS=-g -Wall -MMD -MF $(OBJDIR)/$(@F).d
   CFLAGS += -Wextra
   CFLAGS += -Wno-sign-compare
@@ -86,7 +88,9 @@ ifdef CONFIG_CLANG
   endif
 else
   HOST_CC=gcc
+  HOST_CXX=g++
   CC=$(CROSS_PREFIX)gcc
+  CXX=$(CROSS_PREFIX)g++
   CFLAGS=-g -Wall -MMD -MF $(OBJDIR)/$(@F).d
   CFLAGS += -Wno-array-bounds -Wno-format-truncation
   ifdef CONFIG_LTO
@@ -108,10 +112,16 @@ DEFINES+=-D__USE_MINGW_ANSI_STDIO # for standard snprintf behavior
 endif
 
 CFLAGS+=$(DEFINES)
+CXXFLAGS:=$(CFLAGS) -std=c++17
 CFLAGS_DEBUG=$(CFLAGS) -O0
 CFLAGS_SMALL=$(CFLAGS) -Os
 CFLAGS_OPT=$(CFLAGS) -O2
 CFLAGS_NOLTO:=$(CFLAGS_OPT)
+CXXFLAGS+=$(DEFINES)
+CXXFLAGS_DEBUG=$(CXXFLAGS) -O0
+CXXFLAGS_SMALL=$(CXXFLAGS) -Os
+CXXFLAGS_OPT=$(CXXFLAGS) -O2
+CXXFLAGS_NOLTO:=$(CXXFLAGS_OPT)
 LDFLAGS=-g
 ifdef CONFIG_LTO
 CFLAGS_SMALL+=-flto
@@ -166,7 +176,7 @@ endif
 
 all: $(OBJDIR) $(OBJDIR)/quickjs.check.o $(OBJDIR)/qjs.check.o $(PROGS)
 
-QJS_LIB_OBJS=$(OBJDIR)/quickjs.o $(OBJDIR)/libregexp.o $(OBJDIR)/libunicode.o $(OBJDIR)/cutils.o $(OBJDIR)/quickjs-libc.o
+QJS_LIB_OBJS=$(OBJDIR)/quickjs.cpp.o $(OBJDIR)/quickjs.o $(OBJDIR)/libregexp.o $(OBJDIR)/libunicode.o $(OBJDIR)/cutils.o $(OBJDIR)/quickjs-libc.o
 
 QJS_OBJS=$(OBJDIR)/qjs.o $(OBJDIR)/repl.o $(QJS_LIB_OBJS)
 ifdef CONFIG_BIGNUM
@@ -184,19 +194,19 @@ $(OBJDIR):
 	mkdir -p $(OBJDIR) $(OBJDIR)/examples $(OBJDIR)/tests
 
 qjs$(EXE): $(QJS_OBJS)
-	$(CC) $(LDFLAGS) $(LDEXPORT) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXPORT) -o $@ $^ $(LIBS)
 
 qjs-debug$(EXE): $(patsubst %.o, %.debug.o, $(QJS_OBJS))
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 qjsc$(EXE): $(OBJDIR)/qjsc.o $(QJS_LIB_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 ifneq ($(CROSS_PREFIX),)
 
 $(QJSC): $(OBJDIR)/qjsc.host.o \
     $(patsubst %.o, %.host.o, $(QJS_LIB_OBJS))
-	$(HOST_CC) $(LDFLAGS) -o $@ $^ $(HOST_LIBS)
+	$(HOST_CXX) $(LDFLAGS) -o $@ $^ $(HOST_LIBS)
 
 endif #CROSS_PREFIX
 
@@ -210,10 +220,10 @@ $(OBJDIR)/qjsc.o: CFLAGS+=$(QJSC_DEFINES)
 $(OBJDIR)/qjsc.host.o: CFLAGS+=$(QJSC_HOST_DEFINES)
 
 qjs32: $(patsubst %.o, %.m32.o, $(QJS_OBJS))
-	$(CC) -m32 $(LDFLAGS) $(LDEXPORT) -o $@ $^ $(LIBS)
+	$(CXX) -m32 $(LDFLAGS) $(LDEXPORT) -o $@ $^ $(LIBS)
 
 qjs32_s: $(patsubst %.o, %.m32s.o, $(QJS_OBJS))
-	$(CC) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
 	@size $@
 
 qjscalc: qjs
@@ -248,15 +258,18 @@ libunicode-table.h: unicode_gen
 endif
 
 run-test262: $(OBJDIR)/run-test262.o $(QJS_LIB_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 run-test262-debug: $(patsubst %.o, %.debug.o, $(OBJDIR)/run-test262.o $(QJS_LIB_OBJS))
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 run-test262-32: $(patsubst %.o, %.m32.o, $(OBJDIR)/run-test262.o $(QJS_LIB_OBJS))
-	$(CC) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
 
 # object suffix order: nolto, [m32|m32s]
+
+$(OBJDIR)/%.cpp.o: %.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS_OPT) -c -o $@ $<
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
 	$(CC) $(CFLAGS_OPT) -c -o $@ $<
@@ -269,6 +282,9 @@ $(OBJDIR)/%.pic.o: %.c | $(OBJDIR)
 
 $(OBJDIR)/%.nolto.o: %.c | $(OBJDIR)
 	$(CC) $(CFLAGS_NOLTO) -c -o $@ $<
+
+$(OBJDIR)/%.cpp.nolto.o: %.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS_NOLTO) -c -o $@ $<
 
 $(OBJDIR)/%.m32.o: %.c | $(OBJDIR)
 	$(CC) -m32 $(CFLAGS_OPT) -c -o $@ $<
@@ -283,10 +299,10 @@ $(OBJDIR)/%.check.o: %.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -DCONFIG_CHECK_JSVALUE -c -o $@ $<
 
 regexp_test: libregexp.c libunicode.c cutils.c
-	$(CC) $(LDFLAGS) $(CFLAGS) -DTEST -o $@ libregexp.c libunicode.c cutils.c $(LIBS)
+	$(CXX) $(LDFLAGS) $(CFLAGS) -DTEST -o $@ libregexp.c libunicode.c cutils.c $(LIBS)
 
 unicode_gen: $(OBJDIR)/unicode_gen.host.o $(OBJDIR)/cutils.host.o libunicode.c unicode_gen_def.h
-	$(HOST_CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJDIR)/unicode_gen.host.o $(OBJDIR)/cutils.host.o
+	$(HOST_CXX) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJDIR)/unicode_gen.host.o $(OBJDIR)/cutils.host.o
 
 clean:
 	rm -f repl.c qjscalc.c out.c
@@ -326,10 +342,10 @@ hello.c: $(QJSC) $(HELLO_SRCS)
 
 ifdef CONFIG_M32
 examples/hello: $(OBJDIR)/hello.m32s.o $(patsubst %.o, %.m32s.o, $(QJS_LIB_OBJS))
-	$(CC) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) -m32 $(LDFLAGS) -o $@ $^ $(LIBS)
 else
 examples/hello: $(OBJDIR)/hello.o $(QJS_LIB_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 endif
 
 # example of static JS compilation with modules
@@ -346,13 +362,13 @@ test_fib.c: $(QJSC) examples/test_fib.js
 	$(QJSC) -e -M examples/fib.so,fib -m -o $@ examples/test_fib.js
 
 examples/test_fib: $(OBJDIR)/test_fib.o $(OBJDIR)/examples/fib.o libquickjs$(LTOEXT).a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 examples/fib.so: $(OBJDIR)/examples/fib.pic.o
-	$(CC) $(LDFLAGS) -shared -o $@ $^
+	$(CXX) $(LDFLAGS) -shared -o $@ $^
 
 examples/point.so: $(OBJDIR)/examples/point.pic.o
-	$(CC) $(LDFLAGS) -shared -o $@ $^
+	$(CXX) $(LDFLAGS) -shared -o $@ $^
 
 ###############################################################################
 # documentation
@@ -464,6 +480,6 @@ bench-v8: qjs
 	./qjs -d tests/bench-v8/combined.js
 
 tests/bjson.so: $(OBJDIR)/tests/bjson.pic.o
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -shared -o $@ $^ $(LIBS)
 
 -include $(wildcard $(OBJDIR)/*.d)
