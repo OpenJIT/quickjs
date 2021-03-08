@@ -1,0 +1,14 @@
+/.obj
+/examples/*.so
+/examples/hello
+/examples/hello_module
+/examples/test_fib
+hello.c
+/*.a
+/qjs
+/qjsc
+/qjscalc
+/qjscalc.c
+/repl.c
+/run-test262
+/test_fib.c
