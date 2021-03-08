@@ -127,6 +127,7 @@ namespace qjs {
         Exception get_exception();
             
         public:
+        explicit Context(Runtime_Ref& runtime);
         Context(const Context&);
         ~Context();
 

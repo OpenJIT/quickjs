@@ -195,6 +195,8 @@ qjs::Context::Context(JSContext* ctx):
     }
 }
 
+qjs::Context::Context(Runtime_Ref& runtime): Context(JS_NewContext(runtime.m_runtime)) {}
+
 qjs::Exception qjs::Context::get_exception() {
     auto except = JS_GetException(m_context);
     return Value(std::move(except), m_context);
